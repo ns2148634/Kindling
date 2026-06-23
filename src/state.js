@@ -1,7 +1,7 @@
 import { CITIZEN_PALS, cx, cy } from './constants.js';
 
 export const state = {
-  land:         [[0,0],[1,0],[0,1],[-1,0],[0,-1]],
+  land:         [],
   houses:       [],
   trees:        [],
   towers:       [],        // [c, r, h]
@@ -9,6 +9,8 @@ export const state = {
   citizens:     [],        // runtime only — not persisted
   pulses:       [],        // runtime only — not persisted
   counts: { courage: 0, vitality: 0, focus: 0, warmth: 0, curiosity: 0 },
+  onboarded:  false,
+  direction:  null,
   firstDay:   null,
   lastActive: null,
 };
@@ -17,7 +19,7 @@ export const state = {
 
 export function initState(saved) {
   if (!saved) return; // keep defaults
-  state.land         = saved.land    ?? state.land;
+  state.land         = saved.land    ?? [];
   state.houses       = saved.houses  ?? [];
   state.trees        = saved.trees   ?? [];
   state.towers       = saved.towers  ?? [];
@@ -25,7 +27,9 @@ export function initState(saved) {
   state.counts       = { ...state.counts, ...(saved.counts ?? {}) };
   state.firstDay     = saved.firstDay  ?? null;
   state.lastActive   = saved.lastActive ?? null;
-  // Rebuild runtime citizens from saved count
+  // Backward compat: M2 users have land but no onboarded flag — treat as onboarded
+  state.onboarded = saved.onboarded ?? (state.land.length > 0);
+  state.direction = saved.direction ?? (state.land.length > 0 ? 'courage' : null);
   state.citizens = [];
   rebuildCitizens();
 }
@@ -52,7 +56,8 @@ export function serializeState() {
   return {
     id: 'v1',
     version: 1,
-    direction: 'courage',
+    onboarded:    state.onboarded,
+    direction:    state.direction,
     counts:       { ...state.counts },
     land:         state.land.map(t => [...t]),
     houses:       state.houses.map(t => [...t]),

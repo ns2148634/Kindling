@@ -1,7 +1,7 @@
 import { state, initState, serializeState } from './state.js';
 import { growElement } from './state.js';
 import { draw, updateCitizens } from './renderer.js';
-import { COL } from './constants.js';
+import { COL, cx, cy } from './constants.js';
 import { idb } from './idb.js';
 import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString } from './cards.js';
 
@@ -50,6 +50,8 @@ function drawBg(now) {
 setupBg();
 window.addEventListener('resize', setupBg);
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const ATTR_NAMES = { courage:'勇氣', vitality:'活力', focus:'專注', warmth:'溫暖', curiosity:'好奇' };
 const ROLE_NAMES = { safe:'安全', main:'主線', surprise:'驚喜' };
 const BLOCKED_MSG = {
@@ -59,32 +61,83 @@ const BLOCKED_MSG = {
   'no-land':      '王國還沒有土地',
 };
 
-let daily = null;
+const DIRECTIONS = [
+  { id: 'vitality',  label: '動起來',     color: COL.vitality  },
+  { id: 'focus',     label: '讀點書',     color: COL.focus     },
+  { id: 'courage',   label: '勇敢一點',   color: COL.courage   },
+  { id: 'warmth',    label: '對人好一點', color: COL.warmth    },
+  { id: 'curiosity', label: '多看看世界', color: COL.curiosity },
+];
+
+let daily        = null;
 let codexEntries = [];
+let _savedCodex  = null;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
+  requestAnimationFrame(loop); // Stars start immediately
+
   const [savedKingdom, savedCodex] = await Promise.all([
     idb.get('kingdom', 'v1'),
     idb.get('codex',   'v1'),
   ]);
 
   initState(savedKingdom);
-  if (!state.firstDay) {
-    state.firstDay   = todayString();
-    state.lastActive = todayString();
+  _savedCodex = savedCodex;
+
+  if (!state.onboarded) {
+    showView('onboarding');
+    renderOnboarding();
+  } else {
+    await bootHome();
   }
+}
 
-  codexEntries = savedCodex?.entries ?? [];
-
+async function bootHome() {
+  codexEntries = _savedCodex?.entries ?? [];
   await loadPools();
   daily = await getTodayDaily();
-
   renderCards();
   renderCodex();
   renderStats();
-  requestAnimationFrame(loop);
+  showView('home');
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+function renderOnboarding() {
+  document.getElementById('btn-ob-continue').onclick = () => {
+    document.getElementById('ob-step1').style.display = 'none';
+    const step2 = document.getElementById('ob-step2');
+    step2.style.display    = 'flex';
+    step2.style.flexDirection = 'column';
+  };
+
+  const container = document.getElementById('ob-directions');
+  for (const dir of DIRECTIONS) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-direction';
+    btn.style.setProperty('--dir-color', dir.color);
+    btn.innerHTML = `<span style="color:${dir.color};font-weight:600">${dir.label}</span>`;
+    btn.onclick = () => chooseDirection(dir.id);
+    container.appendChild(btn);
+  }
+}
+
+async function chooseDirection(attr) {
+  state.direction  = attr;
+  state.onboarded  = true;
+  if (state.land.length === 0) state.land.push([0, 0]);
+  state.firstDay   = todayString();
+  state.lastActive = todayString();
+
+  await idb.put('kingdom', serializeState());
+
+  // First tile pulse
+  state.pulses.push({ x: cx(0), y: cy(0), t: performance.now(), color: COL[attr] });
+
+  await bootHome();
 }
 
 // ── Render: cards ─────────────────────────────────────────────────────────────
@@ -107,7 +160,6 @@ function buildCard(slot) {
   div.className = 'card' + (done ? ' completed' : '');
   div.style.setProperty('--attr-color', color);
 
-  // meta row
   const meta = document.createElement('div');
   meta.className = 'card-meta';
   meta.innerHTML = `
@@ -116,12 +168,10 @@ function buildCard(slot) {
     <span class="card-attr">${ATTR_NAMES[card.attribute]}</span>
   `;
 
-  // text
   const textEl = document.createElement('div');
   textEl.className = 'card-text';
   textEl.textContent = card.text;
 
-  // actions
   const actions = document.createElement('div');
   actions.className = 'card-actions';
 
@@ -193,7 +243,6 @@ async function completeCard(slot) {
   if (!result.blocked) {
     state.pulses.push({ x: result.x, y: result.y, t: performance.now(), color: COL[card.attribute] });
   } else {
-    // Card is genuinely completed — still count the achievement even if no visual space
     state.counts[card.attribute]++;
     showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入圖鑑');
   }
@@ -221,12 +270,7 @@ async function handleSwap() {
 }
 
 function showToast(msg) {
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    document.body.appendChild(t);
-  }
+  const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
@@ -238,7 +282,9 @@ window.showView = function(view) {
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
-  document.getElementById('nav-'  + view).classList.add('active');
+  document.getElementById('nav-'  + view)?.classList.add('active');
+  // Hide nav bar during onboarding
+  document.getElementById('bottom-nav').style.display = view === 'onboarding' ? 'none' : '';
 };
 
 // ── rAF loop ──────────────────────────────────────────────────────────────────

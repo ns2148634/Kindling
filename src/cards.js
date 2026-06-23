@@ -1,6 +1,5 @@
 import { idb } from './idb.js';
-
-export const DIRECTION = 'courage'; // M3 將替換為真正的 onboarding 選擇
+import { state } from './state.js';
 
 const SWAPS_PER_DAY = 1;
 const MAIN_OFF_DIRECTION_RATE = 0.2;
@@ -57,10 +56,11 @@ function drawDailyCards(date, pools) {
 
   const safeCard = pickRandom(pools.safe, rng);
 
+  const dir = state.direction || 'courage';
   const useOffDir = rng() < MAIN_OFF_DIRECTION_RATE;
   const mainPool = useOffDir
     ? pools.main
-    : pools.main.filter(c => c.attribute === DIRECTION);
+    : pools.main.filter(c => c.attribute === dir);
   const mainCard = pickRandom(mainPool.length > 0 ? mainPool : pools.main, rng);
 
   const surpriseCard = pickRandom(pools.surprise, rng);

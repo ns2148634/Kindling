@@ -259,6 +259,83 @@
     }
     .nav-btn.active { color: var(--text); }
 
+    /* ══════════════════════════════════
+       Onboarding 流程（首次開啟）
+    ══════════════════════════════════ */
+    #view-onboarding {
+      padding-bottom: env(safe-area-inset-bottom);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ob-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 340px;
+      padding: 0 24px;
+    }
+
+    .ob-avatar { font-size: 52px; line-height: 1; }
+
+    .ob-bubble {
+      background: rgba(15, 20, 36, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 22px;
+      font-size: 15px;
+      line-height: 1.8;
+      text-align: center;
+      color: var(--text);
+      width: 100%;
+    }
+    .ob-bubble p + p { margin-top: 6px; }
+
+    .btn-ob-continue {
+      padding: 10px 32px;
+      border: 1px solid rgba(205, 217, 255, 0.5);
+      background: transparent;
+      color: var(--text);
+      border-radius: 24px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s;
+    }
+    .btn-ob-continue:hover { background: rgba(255,255,255,0.07); border-color: var(--text); }
+
+    .ob-question {
+      font-size: 15px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .ob-directions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .btn-direction {
+      background: rgba(15, 20, 36, 0.82);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--dir-color, var(--border));
+      border-radius: 10px;
+      padding: 13px 16px;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .btn-direction:hover {
+      background: rgba(15, 20, 36, 0.96);
+      border-left-color: var(--dir-color, var(--muted));
+      border-color: rgba(205, 217, 255, 0.25);
+    }
+
     /* ── Toast ── */
     #toast {
       position: fixed;
@@ -290,8 +367,25 @@
 
   <div id="app">
 
+    <!-- Onboarding（首次開啟，選方向） -->
+    <div id="view-onboarding" class="view">
+      <div id="ob-step1" class="ob-step">
+        <div class="ob-avatar">🌱</div>
+        <div class="ob-bubble">
+          <p>嗨，你來了。</p>
+          <p>這裡有一座還在沉睡的小王國，<br>正等著醒過來。</p>
+          <p>不用一次做很多，每天一點點，<br>它就會慢慢亮起來。</p>
+        </div>
+        <button class="btn-ob-continue" id="btn-ob-continue">繼續 →</button>
+      </div>
+      <div id="ob-step2" class="ob-step" style="display:none">
+        <div class="ob-question">你想先往哪個方向走走？</div>
+        <div class="ob-directions" id="ob-directions"></div>
+      </div>
+    </div>
+
     <!-- 首頁：王國（上）＋ 三張卡（下），一屏同框 -->
-    <div id="view-home" class="view active">
+    <div id="view-home" class="view">
       <section id="kingdom-section">
         <div id="canvas-wrap">
           <canvas id="kingdom" width="400" height="400"></canvas>
