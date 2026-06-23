@@ -42,10 +42,11 @@ let _pools = null;
 
 export async function loadPools() {
   if (_pools) return _pools;
+  const base = import.meta.env.BASE_URL;
   const [safe, main, surprise] = await Promise.all([
-    fetch('/cards/safe.json').then(r => r.json()),
-    fetch('/cards/main.json').then(r => r.json()),
-    fetch('/cards/surprise.json').then(r => r.json()),
+    fetch(base + 'cards/safe.json').then(r => r.json()),
+    fetch(base + 'cards/main.json').then(r => r.json()),
+    fetch(base + 'cards/surprise.json').then(r => r.json()),
   ]);
   _pools = { safe, main, surprise };
   return _pools;
