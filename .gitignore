@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+
+# Playwright verification scripts and screenshots
+verify-*.mjs
+verify-*.png

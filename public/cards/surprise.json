@@ -1,0 +1,7 @@
+[
+  {"id":"u_1","attribute":"courage",  "role":"surprise","text":"走進房間時說「朕來了」",              "tone":"absurd"},
+  {"id":"u_2","attribute":"warmth",   "role":"surprise","text":"對著冰箱說「辛苦了」",               "tone":"absurd"},
+  {"id":"u_3","attribute":"vitality", "role":"surprise","text":"假裝自己是企鵝走三步",               "tone":"absurd"},
+  {"id":"u_4","attribute":"curiosity","role":"surprise","text":"跟家裡的垃圾桶自我介紹",             "tone":"absurd"},
+  {"id":"u_5","attribute":"focus",    "role":"surprise","text":"回答任何問題前先說「根據資料顯示」", "tone":"absurd"}
+]

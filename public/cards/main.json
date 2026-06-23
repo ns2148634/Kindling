@@ -1,0 +1,11 @@
+[
+  {"id":"m_cou_1","attribute":"courage",  "role":"main","text":"在群組裡先發第一則訊息",  "tone":"gentle","difficulty":2},
+  {"id":"m_cou_2","attribute":"courage",  "role":"main","text":"主動跟一個人打招呼",      "tone":"gentle","difficulty":2},
+  {"id":"m_cou_3","attribute":"courage",  "role":"main","text":"說出一次你的想法",        "tone":"gentle","difficulty":2},
+  {"id":"m_vit_1","attribute":"vitality", "role":"main","text":"出門散步五分鐘",          "tone":"gentle","difficulty":2},
+  {"id":"m_vit_2","attribute":"vitality", "role":"main","text":"做十下深呼吸",            "tone":"gentle","difficulty":2},
+  {"id":"m_foc_1","attribute":"focus",    "role":"main","text":"專心讀五分鐘不看手機",    "tone":"gentle","difficulty":2},
+  {"id":"m_foc_2","attribute":"focus",    "role":"main","text":"列出今天三件要做的事",    "tone":"gentle","difficulty":2},
+  {"id":"m_war_1","attribute":"warmth",   "role":"main","text":"主動關心一位朋友",        "tone":"gentle","difficulty":2},
+  {"id":"m_cur_1","attribute":"curiosity","role":"main","text":"走一條沒走過的路回家",    "tone":"gentle","difficulty":2}
+]

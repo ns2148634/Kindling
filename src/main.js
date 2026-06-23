@@ -1,0 +1,253 @@
+import { state, initState, serializeState } from './state.js';
+import { growElement } from './state.js';
+import { draw, updateCitizens } from './renderer.js';
+import { COL } from './constants.js';
+import { idb } from './idb.js';
+import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString } from './cards.js';
+
+const canvas     = document.getElementById('kingdom');
+const ctx        = canvas.getContext('2d');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+// Keep kingdom canvas square — min(wrap-width, wrap-height)
+new ResizeObserver(([{ contentRect: r }]) => {
+  const s = Math.floor(Math.min(r.width, r.height));
+  canvas.style.width  = s + 'px';
+  canvas.style.height = s + 'px';
+}).observe(canvasWrap);
+
+// ── Full-screen starry background ─────────────────────────────────────────────
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx    = bgCanvas.getContext('2d');
+let bgStars    = [];
+
+function setupBg() {
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  bgStars = Array.from({ length: 180 }, () => ({
+    x:     Math.random() * window.innerWidth,
+    y:     Math.random() * window.innerHeight,
+    r:     Math.random() * 1.4 + 0.3,
+    phase: Math.random() * Math.PI * 2,
+    speed: Math.random() * 0.8 + 0.4,
+  }));
+}
+
+function drawBg(now) {
+  bgCtx.fillStyle = '#070a14';
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+  for (const s of bgStars) {
+    const alpha = 0.5 + 0.5 * Math.sin(now * 0.001 * s.speed + s.phase);
+    bgCtx.globalAlpha = alpha * 0.9;
+    bgCtx.fillStyle = '#cdd9ff';
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    bgCtx.fill();
+  }
+  bgCtx.globalAlpha = 1;
+}
+
+setupBg();
+window.addEventListener('resize', setupBg);
+
+const ATTR_NAMES = { courage:'勇氣', vitality:'活力', focus:'專注', warmth:'溫暖', curiosity:'好奇' };
+const ROLE_NAMES = { safe:'安全', main:'主線', surprise:'驚喜' };
+const BLOCKED_MSG = {
+  'land-full':    '土地已到邊界——先換個方向',
+  'need-land':    '沒有空格——先用勇氣卡加土地',
+  'citizens-full':'居民已滿——先擴張土地',
+  'no-land':      '王國還沒有土地',
+};
+
+let daily = null;
+let codexEntries = [];
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  const [savedKingdom, savedCodex] = await Promise.all([
+    idb.get('kingdom', 'v1'),
+    idb.get('codex',   'v1'),
+  ]);
+
+  initState(savedKingdom);
+  if (!state.firstDay) {
+    state.firstDay   = todayString();
+    state.lastActive = todayString();
+  }
+
+  codexEntries = savedCodex?.entries ?? [];
+
+  await loadPools();
+  daily = await getTodayDaily();
+
+  renderCards();
+  renderCodex();
+  renderStats();
+  requestAnimationFrame(loop);
+}
+
+// ── Render: cards ─────────────────────────────────────────────────────────────
+
+function renderCards() {
+  if (!daily) return;
+  const container = document.getElementById('cards-container');
+  container.innerHTML = '';
+  for (const slot of ['safe', 'main', 'surprise']) {
+    container.appendChild(buildCard(slot));
+  }
+}
+
+function buildCard(slot) {
+  const card = daily.cards[slot];
+  const done = daily.completed[slot];
+  const color = COL[card.attribute];
+
+  const div = document.createElement('div');
+  div.className = 'card' + (done ? ' completed' : '');
+  div.style.setProperty('--attr-color', color);
+
+  // meta row
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  meta.innerHTML = `
+    <span class="card-role">${ROLE_NAMES[slot]}</span>
+    <span class="card-dot"></span>
+    <span class="card-attr">${ATTR_NAMES[card.attribute]}</span>
+  `;
+
+  // text
+  const textEl = document.createElement('div');
+  textEl.className = 'card-text';
+  textEl.textContent = card.text;
+
+  // actions
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+
+  const completeBtn = document.createElement('button');
+  completeBtn.className = 'btn-complete';
+  completeBtn.textContent = done ? '已完成 ✓' : '完成';
+  completeBtn.disabled = done;
+  completeBtn.onclick = () => completeCard(slot);
+  actions.appendChild(completeBtn);
+
+  if (slot === 'surprise') {
+    const swapBtn = document.createElement('button');
+    swapBtn.className = 'btn-swap';
+    const canSwap = !done && daily.swapsUsed < 1;
+    swapBtn.textContent = `換一張${daily.swapsUsed > 0 ? ' (已換)' : ''}`;
+    swapBtn.disabled = !canSwap;
+    swapBtn.onclick = handleSwap;
+    actions.appendChild(swapBtn);
+  }
+
+  div.append(meta, textEl, actions);
+  return div;
+}
+
+// ── Render: codex ─────────────────────────────────────────────────────────────
+
+function renderCodex() {
+  document.getElementById('codex-count').textContent = codexEntries.length;
+  const list  = document.getElementById('codex-list');
+  const empty = document.getElementById('codex-empty');
+  list.innerHTML = '';
+
+  if (codexEntries.length === 0) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  for (const entry of codexEntries) {
+    const li = document.createElement('li');
+    li.className = 'codex-entry';
+    li.innerHTML = `
+      <div class="codex-dot" style="--dot-color:${COL[entry.attribute]}"></div>
+      <div class="codex-content">
+        <div class="codex-text">${entry.text}</div>
+        <div class="codex-date">${entry.date} · ${ATTR_NAMES[entry.attribute]}</div>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+}
+
+function renderStats() {
+  const { courage, vitality, focus, warmth, curiosity } = state.counts;
+  document.getElementById('stats').textContent =
+    `土地 ${state.land.length} · 勇 ${courage} 活 ${vitality} 專 ${focus} 溫 ${warmth} 奇 ${curiosity}`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+async function completeCard(slot) {
+  if (!daily || daily.completed[slot]) return;
+
+  const card = daily.cards[slot];
+  daily.completed[slot] = true;
+  state.lastActive = daily.date;
+
+  const result = growElement(card.attribute);
+  if (!result.blocked) {
+    state.pulses.push({ x: result.x, y: result.y, t: performance.now(), color: COL[card.attribute] });
+  } else {
+    // Card is genuinely completed — still count the achievement even if no visual space
+    state.counts[card.attribute]++;
+    showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入圖鑑');
+  }
+
+  codexEntries.unshift({ date: daily.date, attribute: card.attribute, text: card.text });
+
+  await Promise.all([
+    idb.put('daily',   daily),
+    idb.put('kingdom', serializeState()),
+    idb.put('codex',   { id: 'v1', entries: codexEntries }),
+  ]);
+
+  renderCards();
+  renderCodex();
+  renderStats();
+}
+
+async function handleSwap() {
+  if (!daily) return;
+  const updated = await doSwap(daily);
+  if (updated) {
+    daily = updated;
+    renderCards();
+  }
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+window.showView = function(view) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.getElementById('nav-'  + view).classList.add('active');
+};
+
+// ── rAF loop ──────────────────────────────────────────────────────────────────
+
+function loop(now) {
+  drawBg(now);
+  updateCitizens();
+  draw(ctx, now);
+  requestAnimationFrame(loop);
+}
+
+init().catch(console.error);
