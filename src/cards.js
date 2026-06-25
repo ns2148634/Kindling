@@ -5,7 +5,8 @@ const SWAPS_PER_DAY = 1;
 const MAIN_OFF_DIRECTION_RATE = 0.2;
 
 export function todayString() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // FNV-1a 32-bit hash

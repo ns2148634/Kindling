@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="每天一點點，王國慢慢亮起來" />
+  <meta name="theme-color" content="#070a14" />
+  <!-- manifest link injected by vite-plugin-pwa at build/dev time -->
+  <link rel="apple-touch-icon" href="/Kindling/icons/icon-192.png" />
   <title>信心王國</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -336,6 +340,36 @@
       border-color: rgba(205, 217, 255, 0.25);
     }
 
+    /* ── SW update banner (persistent, user-triggered reload) ── */
+    #update-banner {
+      display: none;
+      position: fixed;
+      top: calc(env(safe-area-inset-top) + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e2540;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text);
+      font-size: 12px;
+      padding: 8px 14px;
+      gap: 10px;
+      align-items: center;
+      white-space: nowrap;
+      z-index: 300;
+      max-width: 88vw;
+    }
+    #update-banner button {
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     /* ── Toast ── */
     #toast {
       position: fixed;
@@ -412,6 +446,9 @@
     </nav>
   </div>
 
+  <div id="update-banner">
+    有新版本&emsp;<button id="btn-update-apply">更新</button>
+  </div>
   <div id="toast"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

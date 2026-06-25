@@ -4,6 +4,7 @@ import { draw, updateCitizens } from './renderer.js';
 import { COL, cx, cy } from './constants.js';
 import { idb } from './idb.js';
 import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString } from './cards.js';
+import { registerSW } from 'virtual:pwa-register';
 
 const canvas     = document.getElementById('kingdom');
 const ctx        = canvas.getContext('2d');
@@ -297,3 +298,39 @@ function loop(now) {
 }
 
 init().catch(console.error);
+
+// ── Service-worker registration ───────────────────────────────────────────────
+// registerType:'prompt' — new SW waits in `waiting`.
+// We surface a banner; user decides when to reload. Never forced mid-session.
+const updateSW = registerSW({
+  onNeedRefresh() { showUpdateBanner(); },
+  onOfflineReady() { showToast('可離線使用 ✓'); },
+});
+
+function showUpdateBanner() {
+  const banner = document.getElementById('update-banner');
+  banner.style.display = 'flex';
+  document.getElementById('btn-update-apply').onclick = () => updateSW(true);
+}
+
+// ── Cross-day detection ───────────────────────────────────────────────────────
+// Refreshes cards when the local calendar date changes, without losing kingdom
+// or codex data. No "you missed yesterday" messaging — just a clean new day.
+let _lastDate = todayString();
+
+async function checkDayChange() {
+  const today = todayString();
+  if (today === _lastDate) return;
+  _lastDate = today;
+  if (!daily) return;                  // not on home view yet
+  daily = await getTodayDaily();
+  renderCards();
+}
+
+// When user returns from background (phone lock, tab switch, etc.)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkDayChange();
+});
+
+// Low-frequency safety net for apps left open through midnight
+setInterval(checkDayChange, 60_000);
