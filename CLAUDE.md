@@ -105,6 +105,27 @@ Both paths handled in `src/main.js`; neither shows "you missed / streak broken" 
 | Cold start | `getTodayDaily()` key = local date; stale key → miss → redraw |
 | Open through midnight | `visibilitychange` listener + 60 s `setInterval` → `checkDayChange()` |
 
+### Supabase Auth + Sync (M5)
+
+| File | Role |
+|---|---|
+| `src/supabase.js` | Supabase client (returns null if env vars absent); `ensureAuth()` — `getSession()` first, falls back to `signInAnonymously()` |
+| `src/sync.js` | `syncOnBoot(kingdom, codex)` pull-first logic; `schedulePush()` 3-second debounced upsert; `isFresh()` guard prevents overwriting remote with empty local |
+| `supabase/migrations/001_saves.sql` | `saves` table DDL + RLS + trigger |
+| `.env` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — **gitignored, never commit** |
+| `.env.example` | Variable names only, safe to commit |
+
+**saves table schema:**
+```sql
+saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
+```
+`saves.state` = `serializeState()` + `{ codex: entries[] }`.
+`saves.version` = `state.syncVer` (monotonic counter, incremented on every local write).
+
+**Sync flow on boot:** pull remote → if `isFresh(local)` or `remoteVer > localVer` → restore from remote; else if `localVer > remoteVer` → push local. Never let a fresh (empty) device overwrite richer remote data.
+
+**Environment variables:** `VITE_` prefix makes them available to the client bundle. Only `anon` key is used — `service_role` must never appear in client code.
+
 ### Card JSON schema (`public/cards/`)
 
 ```json
@@ -116,4 +137,4 @@ Three pools: `safe.json` (5 cards, one per attribute), `main.json` (9 cards, dir
 
 ## Upcoming milestones
 
-- **M5** — Supabase Auth + schema + RLS + local-first sync
+- **Phase 2** — 額外挑戰 / 星空 / UGC 安全管線 / 分享連結

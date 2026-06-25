@@ -5,6 +5,7 @@ import { COL, cx, cy } from './constants.js';
 import { idb } from './idb.js';
 import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString } from './cards.js';
 import { registerSW } from 'virtual:pwa-register';
+import { syncOnBoot, schedulePush } from './sync.js';
 
 const canvas     = document.getElementById('kingdom');
 const ctx        = canvas.getContext('2d');
@@ -70,9 +71,10 @@ const DIRECTIONS = [
   { id: 'curiosity', label: '多看看世界', color: COL.curiosity },
 ];
 
-let daily        = null;
-let codexEntries = [];
-let _savedCodex  = null;
+let daily         = null;
+let codexEntries  = [];
+let _savedCodex   = null;
+let _savedKingdom = null;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
@@ -84,8 +86,9 @@ async function init() {
     idb.get('codex',   'v1'),
   ]);
 
+  _savedKingdom = savedKingdom;
+  _savedCodex   = savedCodex;
   initState(savedKingdom);
-  _savedCodex = savedCodex;
 
   if (!state.onboarded) {
     showView('onboarding');
@@ -97,6 +100,16 @@ async function init() {
 
 async function bootHome() {
   codexEntries = _savedCodex?.entries ?? [];
+
+  // Cloud sync: pull-first, may restore state from remote (silent, no UI change).
+  // Run before rendering so the user sees their restored kingdom immediately.
+  const restored = await syncOnBoot(_savedKingdom, _savedCodex);
+  if (restored) {
+    // Remote state was loaded into `state` by syncOnBoot → re-read codex from IDB.
+    const freshCodex = await idb.get('codex', 'v1');
+    codexEntries = freshCodex?.entries ?? [];
+  }
+
   await loadPools();
   daily = await getTodayDaily();
   renderCards();
@@ -132,8 +145,11 @@ async function chooseDirection(attr) {
   if (state.land.length === 0) state.land.push([0, 0]);
   state.firstDay   = todayString();
   state.lastActive = todayString();
+  state.syncVer    = (state.syncVer ?? 0) + 1;
 
-  await idb.put('kingdom', serializeState());
+  const s = serializeState();
+  await idb.put('kingdom', s);
+  schedulePush(s, codexEntries);
 
   // First tile pulse
   state.pulses.push({ x: cx(0), y: cy(0), t: performance.now(), color: COL[attr] });
@@ -249,12 +265,15 @@ async function completeCard(slot) {
   }
 
   codexEntries.unshift({ date: daily.date, attribute: card.attribute, text: card.text });
+  state.syncVer = (state.syncVer ?? 0) + 1;
 
+  const s = serializeState();
   await Promise.all([
     idb.put('daily',   daily),
-    idb.put('kingdom', serializeState()),
+    idb.put('kingdom', s),
     idb.put('codex',   { id: 'v1', entries: codexEntries }),
   ]);
+  schedulePush(s, codexEntries);
 
   renderCards();
   renderCodex();

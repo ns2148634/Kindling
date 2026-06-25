@@ -13,6 +13,7 @@ export const state = {
   direction:  null,
   firstDay:   null,
   lastActive: null,
+  syncVer:    0,           // monotonic counter for last-write-wins cloud sync
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -30,7 +31,8 @@ export function initState(saved) {
   // Backward compat: M2 users have land but no onboarded flag — treat as onboarded
   state.onboarded = saved.onboarded ?? (state.land.length > 0);
   state.direction = saved.direction ?? (state.land.length > 0 ? 'courage' : null);
-  state.citizens = [];
+  state.syncVer   = saved.syncVer   ?? 0;
+  state.citizens  = [];
   rebuildCitizens();
 }
 
@@ -55,7 +57,8 @@ export function rebuildCitizens() {
 export function serializeState() {
   return {
     id: 'v1',
-    version: 1,
+    version: 1,             // schema version (for future IDB migrations)
+    syncVer:      state.syncVer,
     onboarded:    state.onboarded,
     direction:    state.direction,
     counts:       { ...state.counts },
