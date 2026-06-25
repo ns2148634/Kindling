@@ -64,11 +64,22 @@ Returns `{ x, y }` on success or `{ blocked: reason }` on failure. `state.counts
 
 `occupiedSet()` includes houses + towers + trees — all three mark a tile as taken.
 
+### Layout (index.html — all CSS inline in `<style>`)
+
+One-screen layout (`100dvh`, no scroll) on `#view-home`:
+- `#kingdom-section` (`flex: 1`) — canvas fills the upper half; `ResizeObserver` keeps `#kingdom` square (`min(wrap-w, wrap-h)`)
+- `#cards-section` (`flex-shrink: 0`) — three compact cards stacked vertically below the canvas
+- `#bottom-nav` (`position: fixed; bottom: 0`) — two tabs only: **首頁** / **圖鑑**
+- `safe-area-inset-top/bottom` applied; `#view-home` has `padding-bottom: calc(56px + env(safe-area-inset-bottom))` to clear the nav
+- `#view-codex` scrolls internally (`overflow-y: auto`); home view does not scroll
+
+`verify-layout.mjs` injects a pre-onboarded IDB state before testing so the home view is always visible.
+
 ### Daily card system
 
 Cards are drawn deterministically: `seededRNG(hash32(date))` guarantees the same 3 cards all day. The drawn result is cached in IDB on first access. Swap uses seed `date + ':swap:' + swapsUsed` for stable replay.
 
-`DIRECTION = 'courage'` in `cards.js` is hardcoded — M3 will replace with real onboarding selection.
+Direction is stored in `state.direction` (set during onboarding); `cards.js` reads it at draw time.
 
 ### Card JSON schema (`public/cards/`)
 
