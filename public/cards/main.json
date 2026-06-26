@@ -1,11 +1,11 @@
 [
-  {"id":"m_cou_1","attribute":"courage",  "role":"main","text":"在群組裡先發第一則訊息",  "title":"破冰者",     "story":"先開口的人，拉近了所有人的距離。",             "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_cou_2","attribute":"courage",  "role":"main","text":"主動跟一個人打招呼",      "title":"一聲你好",   "story":"一聲打招呼，是勇氣最輕的形狀。",               "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_cou_3","attribute":"courage",  "role":"main","text":"說出一次你的想法",        "title":"我有個想法", "story":"你的聲音值得被聽見，即使還有些顫抖。",         "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_vit_1","attribute":"vitality", "role":"main","text":"出門散步五分鐘",          "title":"五分鐘散步", "story":"陽光照在臉上，世界瞬間大了一點。",             "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_vit_2","attribute":"vitality", "role":"main","text":"做十下深呼吸",            "title":"十下深呼吸", "story":"十下深呼吸，把自己帶回了當下。",               "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_foc_1","attribute":"focus",    "role":"main","text":"專心讀五分鐘不看手機",    "title":"沉浸時刻",   "story":"不看手機的五分鐘，是給自己的一份禮物。",       "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_foc_2","attribute":"focus",    "role":"main","text":"列出今天三件要做的事",    "title":"今日三事",   "story":"寫下三件事，讓今天有了輪廓。",                 "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_war_1","attribute":"warmth",   "role":"main","text":"主動關心一位朋友",        "title":"你還好嗎",   "story":"一句「你還好嗎」，可能是對方今天最需要的。",   "rarity":"common","tone":"gentle","difficulty":2},
-  {"id":"m_cur_1","attribute":"curiosity","role":"main","text":"走一條沒走過的路回家",    "title":"新路旅人",   "story":"走一條新路，就多了一個只屬於你的故事。",       "rarity":"common","tone":"gentle","difficulty":2}
+  {"id":"m_cou_1","attribute":"courage",  "role":"main","text":"在群組裡先發第一則訊息",  "title":"破冰者",     "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_cou_2","attribute":"courage",  "role":"main","text":"主動跟一個人打招呼",      "title":"一聲你好",   "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_cou_3","attribute":"courage",  "role":"main","text":"說出一次你的想法",        "title":"我有個想法", "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_vit_1","attribute":"vitality", "role":"main","text":"出門散步五分鐘",          "title":"五分鐘散步", "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_vit_2","attribute":"vitality", "role":"main","text":"做十下深呼吸",            "title":"十下深呼吸", "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_foc_1","attribute":"focus",    "role":"main","text":"專心讀五分鐘不看手機",    "title":"沉浸時刻",   "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_foc_2","attribute":"focus",    "role":"main","text":"列出今天三件要做的事",    "title":"今日三事",   "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_war_1","attribute":"warmth",   "role":"main","text":"主動關心一位朋友",        "title":"你還好嗎",   "rarity":"common","tone":"gentle","difficulty":2},
+  {"id":"m_cur_1","attribute":"curiosity","role":"main","text":"走一條沒走過的路回家",    "title":"新路旅人",   "rarity":"common","tone":"gentle","difficulty":2}
 ]

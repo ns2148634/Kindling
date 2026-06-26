@@ -268,9 +268,8 @@ function renderCollection() {
     const back = document.createElement('div');
     back.className = 'codex-back';
     back.innerHTML = `
-      <div class="codex-back-count">完成 ×${entry.count}</div>
       <div class="codex-back-text">${entry.text ?? ''}</div>
-      ${entry.story ? `<div class="codex-back-story">${entry.story}</div>` : ''}
+      <div class="codex-back-count">完成 ×${entry.count}</div>
       <div class="codex-back-date">${entry.lastDate ?? entry.firstDate ?? ''}</div>
     `;
 
@@ -292,12 +291,15 @@ function renderStory() {
   }
   empty.style.display = 'none';
 
+  const firstDay = state.firstDay;
+
   for (const entry of storyEntries) {
-    // fallback for old codex entries (no title / action fields)
     const title    = entry.title  ?? entry.text ?? '—';
     const action   = entry.action ?? entry.text ?? '—';
     const color    = COL[entry.attribute] ?? '#cdd9ff';
-    const attrName = ATTR_NAMES[entry.attribute] ?? entry.attribute ?? '';
+    const dayLabel = firstDay
+      ? `第${Math.floor((new Date(entry.date) - new Date(firstDay)) / 86400000) + 1}天`
+      : entry.date;
 
     const li = document.createElement('li');
     li.className = 'story-entry';
@@ -306,7 +308,7 @@ function renderStory() {
       <div class="story-content">
         <div class="story-title">${title}</div>
         <div class="story-action">${action}</div>
-        <div class="story-meta">${entry.date} · ${attrName}</div>
+        <div class="story-meta">${dayLabel} · ${entry.date}</div>
       </div>
     `;
     list.appendChild(li);
@@ -361,7 +363,6 @@ async function completeCard(slot) {
       title:     card.title ?? card.text,
       attribute: card.attribute,
       text:      card.text,
-      story:     card.story ?? '',
       rarity:    card.rarity ?? 'common',
     });
   }
