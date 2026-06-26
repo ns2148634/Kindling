@@ -43,13 +43,13 @@ Two canvases stack via CSS:
 
 Logical canvas size is always 400×400 px; CSS display size is set by a `ResizeObserver` to `min(wrap-width, wrap-height)` so it stays square on any screen.
 
-### State & persistence (IndexedDB `kindling` v1)
+### State & persistence (IndexedDB `kindling` v2)
 
 Four stores (IDB v2):
 - `kingdom`    (keyPath `id='v1'`) — land array, buildings, towers `[c,r,h]`, citizenCount, counts per attribute
 - `daily`      (keyPath `date='YYYY-MM-DD'`) — today's 3 cards + completion flags + swapsUsed
 - `codex`      (keyPath `id='v1'`) — **故事 store（append-only）**: every completion is one entry `{id, date, cardId, title, action, attribute}`; backward-compat: old entries without `title`/`action` fall back to `text`
-- `collection` (keyPath `id='v1'`) — **收藏 store（去重）**: `{cardId, count, firstDate, lastDate, title, attribute, text, story, rarity}`; one entry per cardId, `count++` on repeat
+- `collection` (keyPath `id='v1'`) — **收藏 store（去重）**: `{cardId, count, firstDate, lastDate, title, attribute, text, rarity}`; one entry per cardId, `count++` on repeat; **無 story 欄**
 
 `citizens` and `pulses` are **runtime-only** — never persisted, rebuilt from `citizenCount` on load.
 
@@ -144,15 +144,15 @@ saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 
 **收藏 store（`collection` IDB，去重）：**
 ```js
-{ cardId, count, firstDate, lastDate, title, attribute, text, story, rarity }
+{ cardId, count, firstDate, lastDate, title, attribute, text, rarity }
 ```
-- 每種卡只一格，`count` 記總完成次數
+- 每種卡只一格，`count` 記總完成次數；無 `story` 欄
 - 稀有度（`rarity`）**永不綁難度**，目前全部 `'common'`
 
 **卡冊 UI（`#view-codex`）：**
 - Sticky header：「已收藏 N 張」（N = 去重後的種類數）
-- **收藏分頁**（`#codex-collection`）：兩欄網格，Tier 0 卡面（屬性色框 + 光暈 + 稱號）；點擊翻轉 → 卡背（完成次數 ×N + 挑戰動作 + story + 最近日期）
-- **紀錄分頁**（`#codex-story`）：時間流清單（每筆：稱號 + 挑戰動作 + 日期）；不去重
+- **收藏分頁**（`#codex-collection`）：兩欄網格，Tier 0 卡面（屬性色框 + 光暈 + 稱號）；點擊翻轉 → 卡背（挑戰動作 + 完成 ×N + 最近日期）
+- **紀錄分頁**（`#codex-story`）：時間流清單，每筆 meta 格式「第X天 · YYYY-MM-DD」（第X天從 `state.firstDay` 計算）；不去重
 - `switchCodexTab('collection'|'story')` 切換分頁
 - 底部導覽標籤：「卡冊」（`#nav-codex` ID 不變）
 
@@ -161,9 +161,10 @@ saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 ```json
 { "id": "...", "attribute": "courage|vitality|curiosity|warmth|focus",
   "role": "safe|main|surprise",
-  "title": "卡名", "text": "挑戰內容", "story": "卡背敘事（可選）",
+  "title": "卡名（稱號）", "text": "挑戰動作",
   "rarity": "common", "tone": "gentle|absurd", "difficulty": 1 }
 ```
+**無 `story` 欄** — 卡片不帶敘事。
 
 Three pools: `safe.json` (5 cards, one per attribute), `main.json` (9 cards, direction-weighted), `surprise.json` (5 absurd cards, swappable once/day).
 
