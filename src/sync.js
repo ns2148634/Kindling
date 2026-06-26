@@ -63,18 +63,23 @@ async function pushToRemote(combined) {
   }
 }
 
-/** Combine kingdom state + codex entries into one blob for cloud storage. */
-export function buildCloudState(kingdom, codexEntries) {
-  return { ...kingdom, codex: codexEntries ?? [] };
+/** Combine kingdom + story entries + collection into one blob for cloud storage. */
+export function buildCloudState(kingdom, storyEntries, collectionEntries) {
+  return {
+    ...kingdom,
+    codex:      storyEntries      ?? [], // 'codex' key = story store (backward-compat name)
+    collection: collectionEntries ?? [],
+  };
 }
 
-/** Restore cloud blob back into IDB (kingdom + codex stores separately). */
+/** Restore cloud blob back into IDB (kingdom + story + collection stores). */
 async function restoreFromCloud(cloudState) {
-  const { codex = [], ...kingdom } = cloudState;
+  const { codex = [], collection = [], ...kingdom } = cloudState;
   kingdom.id = 'v1';
   initState(kingdom);
   await idb.put('kingdom', kingdom);
-  await idb.put('codex', { id: 'v1', entries: codex });
+  await idb.put('codex',      { id: 'v1', entries: codex });
+  await idb.put('collection', { id: 'v1', entries: collection });
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -86,7 +91,7 @@ async function restoreFromCloud(cloudState) {
  * @param {object} localKingdom  — result of idb.get('kingdom','v1') (may be null)
  * @param {object} localCodex   — result of idb.get('codex','v1') (may be null)
  */
-export async function syncOnBoot(localKingdom, localCodex) {
+export async function syncOnBoot(localKingdom, localStory, localCollection) {
   if (!supabase) return false;
 
   _user = await ensureAuth();
@@ -99,20 +104,22 @@ export async function syncOnBoot(localKingdom, localCodex) {
     const localVer  = localKingdom?.syncVer ?? 0;
 
     if (isFresh(localKingdom) || remoteVer > localVer) {
-      // Remote is richer or local is empty → restore
       await restoreFromCloud(remote.state);
       return true;
     } else if (localVer > remoteVer) {
-      // Local has more recent progress (was offline) → push
-      const codexEntries = localCodex?.entries ?? [];
-      await pushToRemote(buildCloudState(localKingdom, codexEntries));
+      await pushToRemote(buildCloudState(
+        localKingdom,
+        localStory?.entries ?? [],
+        localCollection?.entries ?? [],
+      ));
     }
-    // Equal versions → already in sync, nothing to do
   } else {
-    // No remote save yet — push local if it has real data
     if (!isFresh(localKingdom)) {
-      const codexEntries = localCodex?.entries ?? [];
-      await pushToRemote(buildCloudState(localKingdom, codexEntries));
+      await pushToRemote(buildCloudState(
+        localKingdom,
+        localStory?.entries ?? [],
+        localCollection?.entries ?? [],
+      ));
     }
   }
   return false;
@@ -122,11 +129,11 @@ export async function syncOnBoot(localKingdom, localCodex) {
  * Schedule a debounced push after a local change.
  * Call this immediately after incrementing syncVer and persisting to IDB.
  */
-export function schedulePush(kingdom, codexEntries) {
+export function schedulePush(kingdom, storyEntries, collectionEntries) {
   if (!supabase || !_user) return;
   clearTimeout(_timer);
   _timer = setTimeout(() => {
-    pushToRemote(buildCloudState(kingdom, codexEntries));
+    pushToRemote(buildCloudState(kingdom, storyEntries, collectionEntries));
   }, 3000);
 }
 

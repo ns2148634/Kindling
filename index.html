@@ -190,17 +190,34 @@
     }
 
     #codex-header {
-      font-size: 13px;
-      color: var(--muted);
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
       background: rgba(7, 10, 20, 0.92);
       backdrop-filter: blur(4px);
       z-index: 1;
     }
-    #codex-header span { color: var(--text); font-weight: 600; }
+    .codex-header-top {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 12px 14px 10px;
+    }
+    .codex-header-top span { color: var(--text); font-weight: 600; }
+    .codex-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .codex-tab {
+      flex: 1;
+      padding: 8px 0;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .codex-tab.active { color: var(--text); border-bottom-color: var(--text); }
 
     /* Card grid */
     #codex-grid {
@@ -280,6 +297,12 @@
       transform: rotateY(180deg);
       gap: 6px;
     }
+    .codex-back-count {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--attr-color, var(--text));
+      flex-shrink: 0;
+    }
     .codex-back-date {
       font-size: 10px;
       color: var(--attr-color, var(--muted));
@@ -297,6 +320,29 @@
       line-height: 1.5;
       font-style: italic;
       flex-shrink: 0;
+    }
+
+    /* 紀錄（故事）分頁 */
+    #story-list { list-style: none; display: flex; flex-direction: column; padding: 0 14px; }
+    .story-entry {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .story-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .story-title  { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .story-action { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+    .story-meta   { font-size: 11px; color: var(--muted); opacity: 0.7; }
+    #story-empty {
+      text-align: center; color: var(--muted);
+      padding: 48px 14px; font-size: 14px; line-height: 1.7;
     }
 
     #codex-empty {
@@ -511,9 +557,23 @@
 
     <!-- 信心卡冊（獨立分頁，此頁可捲動） -->
     <div id="view-codex" class="view">
-      <div id="codex-header">已收藏 <span id="codex-count">0</span> 張</div>
-      <div id="codex-grid"></div>
-      <div id="codex-empty">還沒有卡<br>完成第一張，它就會進入卡冊</div>
+      <div id="codex-header">
+        <div class="codex-header-top">已收藏 <span id="codex-count">0</span> 張</div>
+        <div class="codex-tabs">
+          <button class="codex-tab active" id="tab-collection" onclick="switchCodexTab('collection')">收藏</button>
+          <button class="codex-tab"        id="tab-story"      onclick="switchCodexTab('story')">紀錄</button>
+        </div>
+      </div>
+      <!-- 收藏分頁：去重卡片網格 -->
+      <div id="codex-collection">
+        <div id="codex-grid"></div>
+        <div id="codex-empty">還沒有卡<br>完成第一張，它就會進入卡冊</div>
+      </div>
+      <!-- 紀錄分頁：故事時間流 -->
+      <div id="codex-story" style="display:none">
+        <ul id="story-list"></ul>
+        <div id="story-empty">完成任一張卡，你的故事就從這裡開始</div>
+      </div>
     </div>
 
     <nav id="bottom-nav">

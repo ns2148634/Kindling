@@ -45,10 +45,11 @@ Logical canvas size is always 400×400 px; CSS display size is set by a `ResizeO
 
 ### State & persistence (IndexedDB `kindling` v1)
 
-Three stores:
-- `kingdom` (keyPath `id='v1'`) — land array, buildings, towers `[c,r,h]`, citizenCount, counts per attribute
-- `daily` (keyPath `date='YYYY-MM-DD'`) — today's 3 cards + completion flags + swapsUsed
-- `codex` (keyPath `id='v1'`) — flat array of completed-card entries `{id, title, attribute, text, story, rarity, date}` (backward-compat: old entries without `title` fall back to `text`)
+Four stores (IDB v2):
+- `kingdom`    (keyPath `id='v1'`) — land array, buildings, towers `[c,r,h]`, citizenCount, counts per attribute
+- `daily`      (keyPath `date='YYYY-MM-DD'`) — today's 3 cards + completion flags + swapsUsed
+- `codex`      (keyPath `id='v1'`) — **故事 store（append-only）**: every completion is one entry `{id, date, cardId, title, action, attribute}`; backward-compat: old entries without `title`/`action` fall back to `text`
+- `collection` (keyPath `id='v1'`) — **收藏 store（去重）**: `{cardId, count, firstDate, lastDate, title, attribute, text, story, rarity}`; one entry per cardId, `count++` on repeat
 
 `citizens` and `pulses` are **runtime-only** — never persisted, rebuilt from `citizenCount` on load.
 
@@ -119,7 +120,7 @@ Both paths handled in `src/main.js`; neither shows "you missed / streak broken" 
 ```sql
 saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 ```
-`saves.state` = `serializeState()` + `{ codex: entries[] }`.
+`saves.state` = `serializeState()` + `{ codex: storyEntries[], collection: collectionEntries[] }`.
 `saves.version` = `state.syncVer` (monotonic counter, incremented on every local write).
 
 **Sync flow on boot:** pull remote → if `isFresh(local)` or `remoteVer > localVer` → restore from remote; else if `localVer > remoteVer` → push local. Never let a fresh (empty) device overwrite richer remote data.
@@ -128,20 +129,32 @@ saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 
 ### 信心卡冊（v0.4-1）
 
-**codex store 條目 schema（升級後）：**
+**完成流程（onComplete pseudocode）：**
+1. **故事 append**：`storyEntries.unshift({id, date, cardId, title, action, attribute})` → 寫 `codex` IDB store
+2. **收藏 upsert**：`collectionEntries.find(cardId)` → 已有則 `count++`，無則 push 新條目 → 寫 `collection` IDB store
+3. **growElement(attr)** — 王國留痕跡（邏輯完全不變）
+
+**故事 store（`codex` IDB，append-only）：**
 ```js
-{ id, title, attribute, text, story, rarity, date }
+{ id, date, cardId, title, action, attribute }
 ```
-- `title` — 卡名（卡面顯示用）；舊資料無 `title` 時 fallback 用 `text`，不報錯
-- `story` — 卡背敘事（可選）
-- `rarity` — 稀有度；**永不綁難度**，目前全部 `'common'`
+- `title` = 稱號（如「我可以」）；舊資料無 `title` 時 fallback 用 `text`，不報錯
+- `action` = 挑戰動作（如「對著鏡子說一句「我可以」」）；舊資料 fallback 用 `text`
+- 只增不減，同張卡完成N次就有N筆
+
+**收藏 store（`collection` IDB，去重）：**
+```js
+{ cardId, count, firstDate, lastDate, title, attribute, text, story, rarity }
+```
+- 每種卡只一格，`count` 記總完成次數
+- 稀有度（`rarity`）**永不綁難度**，目前全部 `'common'`
 
 **卡冊 UI（`#view-codex`）：**
-- 兩欄網格（`#codex-grid`），每格 `aspect-ratio: 3/4`
-- **Tier 0 卡面**：屬性色頂框 + 中央光暈球 + 屬性名 + 卡名
-- **點擊翻轉**（CSS `rotateY(180deg)`）→ 卡背：完成日期 + 挑戰內容 + story
-- 頂部 sticky header：「已收藏 N 張」
-- 底部導覽標籤：「圖鑑」→「卡冊」（`#nav-codex` ID 不變，只改顯示文字）
+- Sticky header：「已收藏 N 張」（N = 去重後的種類數）
+- **收藏分頁**（`#codex-collection`）：兩欄網格，Tier 0 卡面（屬性色框 + 光暈 + 稱號）；點擊翻轉 → 卡背（完成次數 ×N + 挑戰動作 + story + 最近日期）
+- **紀錄分頁**（`#codex-story`）：時間流清單（每筆：稱號 + 挑戰動作 + 日期）；不去重
+- `switchCodexTab('collection'|'story')` 切換分頁
+- 底部導覽標籤：「卡冊」（`#nav-codex` ID 不變）
 
 ### Card JSON schema (`public/cards/`)
 

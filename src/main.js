@@ -71,23 +71,28 @@ const DIRECTIONS = [
   { id: 'curiosity', label: '多看看世界', color: COL.curiosity },
 ];
 
-let daily         = null;
-let codexEntries  = [];
-let _savedCodex   = null;
-let _savedKingdom = null;
+let daily              = null;
+let storyEntries       = []; // append-only: every completion, including repeats
+let collectionEntries  = []; // deduped: one entry per cardId, with count
+let _savedKingdom      = null;
+let _savedStory        = null;
+let _savedCollection   = null;
+let _nextStoryId       = 1;  // monotonic id for story events
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
   requestAnimationFrame(loop); // Stars start immediately
 
-  const [savedKingdom, savedCodex] = await Promise.all([
-    idb.get('kingdom', 'v1'),
-    idb.get('codex',   'v1'),
+  const [savedKingdom, savedStory, savedCollection] = await Promise.all([
+    idb.get('kingdom',    'v1'),
+    idb.get('codex',      'v1'),  // story store (name kept for backward-compat)
+    idb.get('collection', 'v1'),
   ]);
 
-  _savedKingdom = savedKingdom;
-  _savedCodex   = savedCodex;
+  _savedKingdom    = savedKingdom;
+  _savedStory      = savedStory;
+  _savedCollection = savedCollection;
   initState(savedKingdom);
 
   if (!state.onboarded) {
@@ -99,15 +104,19 @@ async function init() {
 }
 
 async function bootHome() {
-  codexEntries = _savedCodex?.entries ?? [];
+  storyEntries      = _savedStory?.entries      ?? [];
+  collectionEntries = _savedCollection?.entries ?? [];
+  _nextStoryId = storyEntries.reduce((mx, e) => Math.max(mx, e.id ?? 0), 0) + 1;
 
-  // Cloud sync: pull-first, may restore state from remote (silent, no UI change).
-  // Run before rendering so the user sees their restored kingdom immediately.
-  const restored = await syncOnBoot(_savedKingdom, _savedCodex);
+  const restored = await syncOnBoot(_savedKingdom, _savedStory, _savedCollection);
   if (restored) {
-    // Remote state was loaded into `state` by syncOnBoot → re-read codex from IDB.
-    const freshCodex = await idb.get('codex', 'v1');
-    codexEntries = freshCodex?.entries ?? [];
+    const [freshStory, freshColl] = await Promise.all([
+      idb.get('codex',      'v1'),
+      idb.get('collection', 'v1'),
+    ]);
+    storyEntries      = freshStory?.entries ?? [];
+    collectionEntries = freshColl?.entries  ?? [];
+    _nextStoryId = storyEntries.reduce((mx, e) => Math.max(mx, e.id ?? 0), 0) + 1;
   }
 
   await loadPools();
@@ -149,7 +158,7 @@ async function chooseDirection(attr) {
 
   const s = serializeState();
   await idb.put('kingdom', s);
-  schedulePush(s, codexEntries);
+  schedulePush(s, storyEntries, collectionEntries);
 
   // First tile pulse
   state.pulses.push({ x: cx(0), y: cy(0), t: performance.now(), color: COL[attr] });
@@ -213,24 +222,33 @@ function buildCard(slot) {
   return div;
 }
 
-// ── Render: codex (card grid) ────────────────────────────────────────────────
+// ── Render: codex (two-tab: 收藏 grid + 紀錄 timeline) ──────────────────────
 
 function renderCodex() {
-  document.getElementById('codex-count').textContent = codexEntries.length;
+  document.getElementById('codex-count').textContent = collectionEntries.length;
+  renderCollection();
+  renderStory();
+}
+
+function renderCollection() {
   const grid  = document.getElementById('codex-grid');
   const empty = document.getElementById('codex-empty');
   grid.innerHTML = '';
 
-  if (codexEntries.length === 0) {
+  if (collectionEntries.length === 0) {
     empty.style.display = '';
     return;
   }
   empty.style.display = 'none';
 
-  for (const entry of codexEntries) {
-    const title = entry.title ?? entry.text; // backward-compat: old entries have no title
-    const color = COL[entry.attribute];
-    const attrName = ATTR_NAMES[entry.attribute];
+  // newest completion first
+  const sorted = [...collectionEntries].sort((a, b) =>
+    (b.lastDate ?? '').localeCompare(a.lastDate ?? ''));
+
+  for (const entry of sorted) {
+    const color    = COL[entry.attribute] ?? '#cdd9ff';
+    const attrName = ATTR_NAMES[entry.attribute] ?? entry.attribute ?? '';
+    const title    = entry.title ?? entry.cardId ?? '—';
 
     const wrapper = document.createElement('div');
     wrapper.className = 'codex-card-wrapper';
@@ -250,9 +268,10 @@ function renderCodex() {
     const back = document.createElement('div');
     back.className = 'codex-back';
     back.innerHTML = `
-      <div class="codex-back-date">${entry.date}</div>
-      <div class="codex-back-text">${entry.text}</div>
+      <div class="codex-back-count">完成 ×${entry.count}</div>
+      <div class="codex-back-text">${entry.text ?? ''}</div>
       ${entry.story ? `<div class="codex-back-story">${entry.story}</div>` : ''}
+      <div class="codex-back-date">${entry.lastDate ?? entry.firstDate ?? ''}</div>
     `;
 
     card.append(face, back);
@@ -261,6 +280,46 @@ function renderCodex() {
     grid.appendChild(wrapper);
   }
 }
+
+function renderStory() {
+  const list  = document.getElementById('story-list');
+  const empty = document.getElementById('story-empty');
+  list.innerHTML = '';
+
+  if (storyEntries.length === 0) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  for (const entry of storyEntries) {
+    // fallback for old codex entries (no title / action fields)
+    const title    = entry.title  ?? entry.text ?? '—';
+    const action   = entry.action ?? entry.text ?? '—';
+    const color    = COL[entry.attribute] ?? '#cdd9ff';
+    const attrName = ATTR_NAMES[entry.attribute] ?? entry.attribute ?? '';
+
+    const li = document.createElement('li');
+    li.className = 'story-entry';
+    li.innerHTML = `
+      <div class="story-dot" style="background:${color};box-shadow:0 0 5px ${color}"></div>
+      <div class="story-content">
+        <div class="story-title">${title}</div>
+        <div class="story-action">${action}</div>
+        <div class="story-meta">${entry.date} · ${attrName}</div>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+}
+
+window.switchCodexTab = function(tab) {
+  const isCollection = tab === 'collection';
+  document.getElementById('codex-collection').style.display = isCollection ? '' : 'none';
+  document.getElementById('codex-story').style.display      = isCollection ? 'none' : '';
+  document.getElementById('tab-collection').classList.toggle('active', isCollection);
+  document.getElementById('tab-story').classList.toggle('active', !isCollection);
+};
 
 function renderStats() {
   const { courage, vitality, focus, warmth, curiosity } = state.counts;
@@ -277,6 +336,37 @@ async function completeCard(slot) {
   daily.completed[slot] = true;
   state.lastActive = daily.date;
 
+  // 1) Story: always append (every completion is a unique event, even for repeat cards)
+  const storyEntry = {
+    id:        _nextStoryId++,
+    date:      daily.date,
+    cardId:    card.id,
+    title:     card.title ?? card.text,
+    action:    card.text,
+    attribute: card.attribute,
+  };
+  storyEntries.unshift(storyEntry);
+
+  // 2) Collection: upsert by cardId (deduped — count++ on repeat)
+  const existing = collectionEntries.find(c => c.cardId === card.id);
+  if (existing) {
+    existing.count++;
+    existing.lastDate = daily.date;
+  } else {
+    collectionEntries.push({
+      cardId:    card.id,
+      count:     1,
+      firstDate: daily.date,
+      lastDate:  daily.date,
+      title:     card.title ?? card.text,
+      attribute: card.attribute,
+      text:      card.text,
+      story:     card.story ?? '',
+      rarity:    card.rarity ?? 'common',
+    });
+  }
+
+  // 3) growElement (unchanged — leaves a kingdom trace)
   const result = growElement(card.attribute);
   if (!result.blocked) {
     state.pulses.push({ x: result.x, y: result.y, t: performance.now(), color: COL[card.attribute] });
@@ -285,24 +375,15 @@ async function completeCard(slot) {
     showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入卡冊');
   }
 
-  codexEntries.unshift({
-    id:        card.id,
-    title:     card.title ?? card.text,  // fallback: old cards without title use text
-    attribute: card.attribute,
-    text:      card.text,
-    story:     card.story ?? '',
-    rarity:    card.rarity ?? 'common',
-    date:      daily.date,
-  });
   state.syncVer = (state.syncVer ?? 0) + 1;
-
   const s = serializeState();
   await Promise.all([
-    idb.put('daily',   daily),
-    idb.put('kingdom', s),
-    idb.put('codex',   { id: 'v1', entries: codexEntries }),
+    idb.put('daily',      daily),
+    idb.put('kingdom',    s),
+    idb.put('codex',      { id: 'v1', entries: storyEntries }),
+    idb.put('collection', { id: 'v1', entries: collectionEntries }),
   ]);
-  schedulePush(s, codexEntries);
+  schedulePush(s, storyEntries, collectionEntries);
 
   renderCards();
   renderCodex();

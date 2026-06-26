@@ -1,5 +1,5 @@
 const DB_NAME = 'kindling';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let _db;
 
 function openDB() {
@@ -13,7 +13,9 @@ function openDB() {
       if (!d.objectStoreNames.contains('daily'))
         d.createObjectStore('daily', { keyPath: 'date' });
       if (!d.objectStoreNames.contains('codex'))
-        d.createObjectStore('codex', { keyPath: 'id' });
+        d.createObjectStore('codex', { keyPath: 'id' });   // story store (append-only)
+      if (!d.objectStoreNames.contains('collection'))
+        d.createObjectStore('collection', { keyPath: 'id' }); // v2: deduped collection
     };
     req.onsuccess = e => { _db = e.target.result; resolve(_db); };
     req.onerror   = e => reject(e.target.error);
