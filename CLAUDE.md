@@ -48,7 +48,7 @@ Logical canvas size is always 400×400 px; CSS display size is set by a `ResizeO
 Three stores:
 - `kingdom` (keyPath `id='v1'`) — land array, buildings, towers `[c,r,h]`, citizenCount, counts per attribute
 - `daily` (keyPath `date='YYYY-MM-DD'`) — today's 3 cards + completion flags + swapsUsed
-- `codex` (keyPath `id='v1'`) — flat array of completed-card entries `{date, attribute, text}`
+- `codex` (keyPath `id='v1'`) — flat array of completed-card entries `{id, title, attribute, text, story, rarity, date}` (backward-compat: old entries without `title` fall back to `text`)
 
 `citizens` and `pulses` are **runtime-only** — never persisted, rebuilt from `citizenCount` on load.
 
@@ -69,7 +69,7 @@ Returns `{ x, y }` on success or `{ blocked: reason }` on failure. `state.counts
 One-screen layout (`100dvh`, no scroll) on `#view-home`:
 - `#kingdom-section` (`flex: 1`) — canvas fills the upper half; `ResizeObserver` keeps `#kingdom` square (`min(wrap-w, wrap-h)`)
 - `#cards-section` (`flex-shrink: 0`) — three compact cards stacked vertically below the canvas
-- `#bottom-nav` (`position: fixed; bottom: 0`) — two tabs only: **首頁** / **圖鑑**
+- `#bottom-nav` (`position: fixed; bottom: 0`) — two tabs only: **首頁** / **卡冊**
 - `safe-area-inset-top/bottom` applied; `#view-home` has `padding-bottom: calc(56px + env(safe-area-inset-bottom))` to clear the nav
 - `#view-codex` scrolls internally (`overflow-y: auto`); home view does not scroll
 
@@ -126,11 +126,30 @@ saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 
 **Environment variables:** `VITE_` prefix makes them available to the client bundle. Only `anon` key is used — `service_role` must never appear in client code.
 
+### 信心卡冊（v0.4-1）
+
+**codex store 條目 schema（升級後）：**
+```js
+{ id, title, attribute, text, story, rarity, date }
+```
+- `title` — 卡名（卡面顯示用）；舊資料無 `title` 時 fallback 用 `text`，不報錯
+- `story` — 卡背敘事（可選）
+- `rarity` — 稀有度；**永不綁難度**，目前全部 `'common'`
+
+**卡冊 UI（`#view-codex`）：**
+- 兩欄網格（`#codex-grid`），每格 `aspect-ratio: 3/4`
+- **Tier 0 卡面**：屬性色頂框 + 中央光暈球 + 屬性名 + 卡名
+- **點擊翻轉**（CSS `rotateY(180deg)`）→ 卡背：完成日期 + 挑戰內容 + story
+- 頂部 sticky header：「已收藏 N 張」
+- 底部導覽標籤：「圖鑑」→「卡冊」（`#nav-codex` ID 不變，只改顯示文字）
+
 ### Card JSON schema (`public/cards/`)
 
 ```json
 { "id": "...", "attribute": "courage|vitality|curiosity|warmth|focus",
-  "role": "safe|main|surprise", "text": "...", "tone": "...", "difficulty": 1 }
+  "role": "safe|main|surprise",
+  "title": "卡名", "text": "挑戰內容", "story": "卡背敘事（可選）",
+  "rarity": "common", "tone": "gentle|absurd", "difficulty": 1 }
 ```
 
 Three pools: `safe.json` (5 cards, one per attribute), `main.json` (9 cards, direction-weighted), `surprise.json` (5 absurd cards, swappable once/day).

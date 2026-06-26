@@ -213,13 +213,13 @@ function buildCard(slot) {
   return div;
 }
 
-// ── Render: codex ─────────────────────────────────────────────────────────────
+// ── Render: codex (card grid) ────────────────────────────────────────────────
 
 function renderCodex() {
   document.getElementById('codex-count').textContent = codexEntries.length;
-  const list  = document.getElementById('codex-list');
+  const grid  = document.getElementById('codex-grid');
   const empty = document.getElementById('codex-empty');
-  list.innerHTML = '';
+  grid.innerHTML = '';
 
   if (codexEntries.length === 0) {
     empty.style.display = '';
@@ -228,16 +228,37 @@ function renderCodex() {
   empty.style.display = 'none';
 
   for (const entry of codexEntries) {
-    const li = document.createElement('li');
-    li.className = 'codex-entry';
-    li.innerHTML = `
-      <div class="codex-dot" style="--dot-color:${COL[entry.attribute]}"></div>
-      <div class="codex-content">
-        <div class="codex-text">${entry.text}</div>
-        <div class="codex-date">${entry.date} · ${ATTR_NAMES[entry.attribute]}</div>
-      </div>
+    const title = entry.title ?? entry.text; // backward-compat: old entries have no title
+    const color = COL[entry.attribute];
+    const attrName = ATTR_NAMES[entry.attribute];
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'codex-card-wrapper';
+    wrapper.style.setProperty('--attr-color', color);
+
+    const card = document.createElement('div');
+    card.className = 'codex-card';
+
+    const face = document.createElement('div');
+    face.className = 'codex-face';
+    face.innerHTML = `
+      <div class="codex-face-glow"><div class="codex-face-orb"></div></div>
+      <div class="codex-face-attr">${attrName}</div>
+      <div class="codex-face-title">${title}</div>
     `;
-    list.appendChild(li);
+
+    const back = document.createElement('div');
+    back.className = 'codex-back';
+    back.innerHTML = `
+      <div class="codex-back-date">${entry.date}</div>
+      <div class="codex-back-text">${entry.text}</div>
+      ${entry.story ? `<div class="codex-back-story">${entry.story}</div>` : ''}
+    `;
+
+    card.append(face, back);
+    wrapper.appendChild(card);
+    wrapper.addEventListener('click', () => card.classList.toggle('flipped'));
+    grid.appendChild(wrapper);
   }
 }
 
@@ -261,10 +282,18 @@ async function completeCard(slot) {
     state.pulses.push({ x: result.x, y: result.y, t: performance.now(), color: COL[card.attribute] });
   } else {
     state.counts[card.attribute]++;
-    showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入圖鑑');
+    showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入卡冊');
   }
 
-  codexEntries.unshift({ date: daily.date, attribute: card.attribute, text: card.text });
+  codexEntries.unshift({
+    id:        card.id,
+    title:     card.title ?? card.text,  // fallback: old cards without title use text
+    attribute: card.attribute,
+    text:      card.text,
+    story:     card.story ?? '',
+    rarity:    card.rarity ?? 'common',
+    date:      daily.date,
+  });
   state.syncVer = (state.syncVer ?? 0) + 1;
 
   const s = serializeState();

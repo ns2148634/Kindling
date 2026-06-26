@@ -1,7 +1,7 @@
 [
-  {"id":"s_warmth",   "attribute":"warmth",   "role":"safe","text":"對一個人說謝謝",          "tone":"gentle","difficulty":1},
-  {"id":"s_courage",  "attribute":"courage",  "role":"safe","text":"對著鏡子說一句「我可以」", "tone":"gentle","difficulty":1},
-  {"id":"s_vitality", "attribute":"vitality", "role":"safe","text":"站起來伸個懶腰",          "tone":"gentle","difficulty":1},
-  {"id":"s_focus",    "attribute":"focus",    "role":"safe","text":"把桌上一樣東西歸位",       "tone":"gentle","difficulty":1},
-  {"id":"s_curiosity","attribute":"curiosity","role":"safe","text":"查一個你今天好奇的字",     "tone":"gentle","difficulty":1}
+  {"id":"s_warmth",   "attribute":"warmth",   "role":"safe","text":"對一個人說謝謝",          "title":"謝謝你",     "story":"一句謝謝，讓對方知道他的存在被看見了。",               "rarity":"common","tone":"gentle","difficulty":1},
+  {"id":"s_courage",  "attribute":"courage",  "role":"safe","text":"對著鏡子說一句「我可以」", "title":"我可以",     "story":"對著鏡子說出「我可以」，你是第一個相信自己的人。",   "rarity":"common","tone":"gentle","difficulty":1},
+  {"id":"s_vitality", "attribute":"vitality", "role":"safe","text":"站起來伸個懶腰",          "title":"懶腰時刻",   "story":"伸展身體，提醒自己還在這裡，還活著。",                 "rarity":"common","tone":"gentle","difficulty":1},
+  {"id":"s_focus",    "attribute":"focus",    "role":"safe","text":"把桌上一樣東西歸位",       "title":"第一件歸位", "story":"歸位一樣東西，是對混亂說：「我來了。」",               "rarity":"common","tone":"gentle","difficulty":1},
+  {"id":"s_curiosity","attribute":"curiosity","role":"safe","text":"查一個你今天好奇的字",     "title":"今日一問",   "story":"好奇心是一把鑰匙，打開了今天的一扇小門。",             "rarity":"common","tone":"gentle","difficulty":1}
 ]

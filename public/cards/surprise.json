@@ -1,7 +1,7 @@
 [
-  {"id":"u_1","attribute":"courage",  "role":"surprise","text":"走進房間時說「朕來了」",              "tone":"absurd"},
-  {"id":"u_2","attribute":"warmth",   "role":"surprise","text":"對著冰箱說「辛苦了」",               "tone":"absurd"},
-  {"id":"u_3","attribute":"vitality", "role":"surprise","text":"假裝自己是企鵝走三步",               "tone":"absurd"},
-  {"id":"u_4","attribute":"curiosity","role":"surprise","text":"跟家裡的垃圾桶自我介紹",             "tone":"absurd"},
-  {"id":"u_5","attribute":"focus",    "role":"surprise","text":"回答任何問題前先說「根據資料顯示」", "tone":"absurd"}
+  {"id":"u_1","attribute":"courage",  "role":"surprise","text":"走進房間時說「朕來了」",              "title":"朕來了",     "story":"偶爾假裝一下，讓自己笑出來。",       "rarity":"common","tone":"absurd"},
+  {"id":"u_2","attribute":"warmth",   "role":"surprise","text":"對著冰箱說「辛苦了」",               "title":"冰箱辛苦了", "story":"感謝每一個默默付出的存在。",         "rarity":"common","tone":"absurd"},
+  {"id":"u_3","attribute":"vitality", "role":"surprise","text":"假裝自己是企鵝走三步",               "title":"企鵝漫步",   "story":"讓身體做一件荒謬的事，笑了就贏。", "rarity":"common","tone":"absurd"},
+  {"id":"u_4","attribute":"curiosity","role":"surprise","text":"跟家裡的垃圾桶自我介紹",             "title":"自我介紹",   "story":"連垃圾桶也值得被認識一下。",         "rarity":"common","tone":"absurd"},
+  {"id":"u_5","attribute":"focus",    "role":"surprise","text":"回答任何問題前先說「根據資料顯示」", "title":"根據資料顯示","story":"加上這句話，什麼都感覺更正式了。",  "rarity":"common","tone":"absurd"}
 ]

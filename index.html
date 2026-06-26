@@ -181,20 +181,19 @@
     .btn-swap:disabled { opacity: 0.3; cursor: default; }
 
     /* ══════════════════════════════════
-       圖鑑頁：獨立捲動
+       卡冊頁：獨立捲動
     ══════════════════════════════════ */
     #view-codex {
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 16px 14px 0;
+      padding: 0;
     }
 
     #codex-header {
       font-size: 13px;
       color: var(--muted);
-      padding-bottom: 12px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--border);
-      margin-bottom: 12px;
       position: sticky;
       top: 0;
       background: rgba(7, 10, 20, 0.92);
@@ -203,25 +202,102 @@
     }
     #codex-header span { color: var(--text); font-weight: 600; }
 
-    #codex-list { list-style: none; display: flex; flex-direction: column; }
-
-    .codex-entry {
-      display: flex;
+    /* Card grid */
+    #codex-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      align-items: flex-start;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
     }
-    .codex-dot {
-      width: 8px; height: 8px;
+
+    /* Each wrapper keeps the card's aspect ratio */
+    .codex-card-wrapper {
+      aspect-ratio: 3 / 4;
+      perspective: 900px;
+      cursor: pointer;
+    }
+
+    /* Flippable card — transforms the inner element */
+    .codex-card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.38s ease;
+    }
+    .codex-card.flipped { transform: rotateY(180deg); }
+
+    /* Shared base for face and back */
+    .codex-face, .codex-back {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    /* Card face: attribute color top border, title at bottom */
+    .codex-face {
+      background: rgba(15, 20, 36, 0.92);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--attr-color, var(--border));
+      justify-content: flex-end;
+      gap: 3px;
+    }
+    .codex-face-glow {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .codex-face-orb {
+      width: 28px; height: 28px;
       border-radius: 50%;
-      background: var(--dot-color, var(--muted));
-      box-shadow: 0 0 6px var(--dot-color, transparent);
-      flex-shrink: 0;
-      margin-top: 4px;
+      background: var(--attr-color, var(--muted));
+      opacity: 0.22;
+      box-shadow: 0 0 22px 6px var(--attr-color, transparent);
     }
-    .codex-text { font-size: 14px; margin-bottom: 3px; }
-    .codex-date { font-size: 11px; color: var(--muted); }
+    .codex-face-attr {
+      font-size: 10px;
+      color: var(--attr-color, var(--muted));
+      letter-spacing: 0.06em;
+    }
+    .codex-face-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    /* Card back: date + challenge text + story */
+    .codex-back {
+      background: rgba(8, 12, 24, 0.97);
+      border: 1px solid var(--attr-color, var(--border));
+      transform: rotateY(180deg);
+      gap: 6px;
+    }
+    .codex-back-date {
+      font-size: 10px;
+      color: var(--attr-color, var(--muted));
+      flex-shrink: 0;
+    }
+    .codex-back-text {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+      flex: 1;
+    }
+    .codex-back-story {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-style: italic;
+      flex-shrink: 0;
+    }
 
     #codex-empty {
       text-align: center;
@@ -433,16 +509,16 @@
       </section>
     </div>
 
-    <!-- 信心圖鑑（獨立分頁，此頁可捲動） -->
+    <!-- 信心卡冊（獨立分頁，此頁可捲動） -->
     <div id="view-codex" class="view">
-      <div id="codex-header">已記下 <span id="codex-count">0</span> 件做到的事</div>
-      <ul id="codex-list"></ul>
-      <div id="codex-empty">還沒有紀錄<br>完成第一張卡，這裡就會多一筆</div>
+      <div id="codex-header">已收藏 <span id="codex-count">0</span> 張</div>
+      <div id="codex-grid"></div>
+      <div id="codex-empty">還沒有卡<br>完成第一張，它就會進入卡冊</div>
     </div>
 
     <nav id="bottom-nav">
       <button class="nav-btn active" id="nav-home"  onclick="showView('home')">🏰 首頁</button>
-      <button class="nav-btn"        id="nav-codex" onclick="showView('codex')">📖 圖鑑</button>
+      <button class="nav-btn"        id="nav-codex" onclick="showView('codex')">📖 卡冊</button>
     </nav>
   </div>
 
