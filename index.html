@@ -423,35 +423,27 @@
     }
     .btn-ob-continue:hover { background: rgba(255,255,255,0.07); border-color: var(--text); }
 
-    .ob-question {
-      font-size: 15px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .ob-directions {
+    /* ── Main card: attribute picker ── */
+    .main-attr-picker {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: 100%;
+      gap: 5px;
     }
-
-    .btn-direction {
-      background: rgba(15, 20, 36, 0.82);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--dir-color, var(--border));
-      border-radius: 10px;
-      padding: 13px 16px;
-      color: var(--text);
-      font-size: 14px;
+    .btn-attr {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 2px;
+      border: 1px solid var(--attr-color, var(--border));
+      background: transparent;
+      color: var(--attr-color, var(--muted));
+      border-radius: 6px;
       cursor: pointer;
-      text-align: left;
-      transition: border-color 0.18s, background 0.18s;
+      font-size: 11px;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s;
     }
-    .btn-direction:hover {
-      background: rgba(15, 20, 36, 0.96);
-      border-left-color: var(--dir-color, var(--muted));
-      border-color: rgba(205, 217, 255, 0.25);
+    .btn-attr:hover {
+      background: var(--attr-color, var(--border));
+      color: #070a14;
     }
 
     /* ── SW update banner (persistent, user-triggered reload) ── */
@@ -515,7 +507,7 @@
 
   <div id="app">
 
-    <!-- Onboarding（首次開啟，選方向） -->
+    <!-- Onboarding（首次開啟） -->
     <div id="view-onboarding" class="view">
       <div id="ob-step1" class="ob-step">
         <div class="ob-avatar">🌱</div>
@@ -524,11 +516,7 @@
           <p>這裡有一座還在沉睡的小王國，<br>正等著醒過來。</p>
           <p>不用一次做很多，每天一點點，<br>它就會慢慢亮起來。</p>
         </div>
-        <button class="btn-ob-continue" id="btn-ob-continue">繼續 →</button>
-      </div>
-      <div id="ob-step2" class="ob-step" style="display:none">
-        <div class="ob-question">你想先往哪個方向走走？</div>
-        <div class="ob-directions" id="ob-directions"></div>
+        <button class="btn-ob-continue" id="btn-ob-continue">開始 →</button>
       </div>
     </div>
 

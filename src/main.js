@@ -3,7 +3,7 @@ import { growElement } from './state.js';
 import { draw, updateCitizens } from './renderer.js';
 import { COL, cx, cy } from './constants.js';
 import { idb } from './idb.js';
-import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString } from './cards.js';
+import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString, selectMainAttr } from './cards.js';
 import { registerSW } from 'virtual:pwa-register';
 import { syncOnBoot, schedulePush } from './sync.js';
 
@@ -63,14 +63,6 @@ const BLOCKED_MSG = {
   'no-land':      '王國還沒有土地',
 };
 
-const DIRECTIONS = [
-  { id: 'vitality',  label: '動起來',     color: COL.vitality  },
-  { id: 'focus',     label: '讀點書',     color: COL.focus     },
-  { id: 'courage',   label: '勇敢一點',   color: COL.courage   },
-  { id: 'warmth',    label: '對人好一點', color: COL.warmth    },
-  { id: 'curiosity', label: '多看看世界', color: COL.curiosity },
-];
-
 let daily              = null;
 let storyEntries       = []; // append-only: every completion, including repeats
 let collectionEntries  = []; // deduped: one entry per cardId, with count
@@ -78,6 +70,7 @@ let _savedKingdom      = null;
 let _savedStory        = null;
 let _savedCollection   = null;
 let _nextStoryId       = 1;  // monotonic id for story events
+let _mainPickerOpen    = false; // true when player re-opens attr picker
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
@@ -104,6 +97,7 @@ async function init() {
 }
 
 async function bootHome() {
+  _mainPickerOpen   = false;
   storyEntries      = _savedStory?.entries      ?? [];
   collectionEntries = _savedCollection?.entries ?? [];
   _nextStoryId = storyEntries.reduce((mx, e) => Math.max(mx, e.id ?? 0), 0) + 1;
@@ -130,27 +124,12 @@ async function bootHome() {
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
 function renderOnboarding() {
-  document.getElementById('btn-ob-continue').onclick = () => {
-    document.getElementById('ob-step1').style.display = 'none';
-    const step2 = document.getElementById('ob-step2');
-    step2.style.display    = 'flex';
-    step2.style.flexDirection = 'column';
-  };
-
-  const container = document.getElementById('ob-directions');
-  for (const dir of DIRECTIONS) {
-    const btn = document.createElement('button');
-    btn.className = 'btn-direction';
-    btn.style.setProperty('--dir-color', dir.color);
-    btn.innerHTML = `<span style="color:${dir.color};font-weight:600">${dir.label}</span>`;
-    btn.onclick = () => chooseDirection(dir.id);
-    container.appendChild(btn);
-  }
+  document.getElementById('btn-ob-continue').onclick = startKingdom;
 }
 
-async function chooseDirection(attr) {
-  state.direction  = attr;
+async function startKingdom() {
   state.onboarded  = true;
+  state.direction  = null; // no longer chosen at onboarding (kept for compat)
   if (state.land.length === 0) state.land.push([0, 0]);
   state.firstDay   = todayString();
   state.lastActive = todayString();
@@ -160,8 +139,7 @@ async function chooseDirection(attr) {
   await idb.put('kingdom', s);
   schedulePush(s, storyEntries, collectionEntries);
 
-  // First tile pulse
-  state.pulses.push({ x: cx(0), y: cy(0), t: performance.now(), color: COL[attr] });
+  state.pulses.push({ x: cx(0), y: cy(0), t: performance.now(), color: '#cdd9ff' });
 
   await bootHome();
 }
@@ -178,6 +156,11 @@ function renderCards() {
 }
 
 function buildCard(slot) {
+  // Main card: show attr picker if no card yet or picker explicitly re-opened
+  if (slot === 'main' && (!daily.cards.main || _mainPickerOpen)) {
+    return buildMainPicker();
+  }
+
   const card = daily.cards[slot];
   const done = daily.completed[slot];
   const color = COL[card.attribute];
@@ -218,8 +201,53 @@ function buildCard(slot) {
     actions.appendChild(swapBtn);
   }
 
+  if (slot === 'main' && !done) {
+    const changeBtn = document.createElement('button');
+    changeBtn.className = 'btn-swap';
+    changeBtn.textContent = '換屬性';
+    changeBtn.onclick = () => { _mainPickerOpen = true; renderCards(); };
+    actions.appendChild(changeBtn);
+  }
+
   div.append(meta, textEl, actions);
   return div;
+}
+
+function buildMainPicker() {
+  const div = document.createElement('div');
+  div.className = 'card';
+
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  meta.innerHTML = '<span class="card-role">成長</span>';
+
+  const prompt = document.createElement('div');
+  prompt.className = 'card-text';
+  prompt.textContent = '選今天想練的方向';
+
+  const picker = document.createElement('div');
+  picker.className = 'main-attr-picker';
+
+  for (const attr of ['courage', 'vitality', 'focus', 'warmth', 'curiosity']) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-attr';
+    btn.style.setProperty('--attr-color', COL[attr]);
+    btn.textContent = ATTR_NAMES[attr];
+    btn.onclick = () => handleSelectMainAttr(attr);
+    picker.appendChild(btn);
+  }
+
+  div.append(meta, prompt, picker);
+  return div;
+}
+
+async function handleSelectMainAttr(attr) {
+  _mainPickerOpen = false;
+  const updated = await selectMainAttr(daily, attr);
+  if (updated) {
+    daily = updated;
+    renderCards();
+  }
 }
 
 // ── Render: codex (two-tab: 收藏 grid + 紀錄 timeline) ──────────────────────
@@ -452,7 +480,8 @@ async function checkDayChange() {
   const today = todayString();
   if (today === _lastDate) return;
   _lastDate = today;
-  if (!daily) return;                  // not on home view yet
+  if (!daily) return;
+  _mainPickerOpen = false;
   daily = await getTodayDaily();
   renderCards();
 }

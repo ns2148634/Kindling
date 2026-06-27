@@ -2,7 +2,6 @@ import { idb } from './idb.js';
 import { state } from './state.js';
 
 const SWAPS_PER_DAY = 1;
-const MAIN_OFF_DIRECTION_RATE = 0.2;
 
 export function todayString() {
   const d = new Date();
@@ -54,24 +53,32 @@ export async function loadPools() {
 
 function drawDailyCards(date, pools) {
   const rng = seededRNG(hash32(date));
-
-  const safeCard = pickRandom(pools.safe, rng);
-
-  const dir = state.direction || 'courage';
-  const useOffDir = rng() < MAIN_OFF_DIRECTION_RATE;
-  const mainPool = useOffDir
-    ? pools.main
-    : pools.main.filter(c => c.attribute === dir);
-  const mainCard = pickRandom(mainPool.length > 0 ? mainPool : pools.main, rng);
-
+  const safeCard     = pickRandom(pools.safe, rng);
   const surpriseCard = pickRandom(pools.surprise, rng);
-
   return {
     date,
-    cards: { safe: safeCard, main: mainCard, surprise: surpriseCard },
-    completed: { safe: false, main: false, surprise: false },
+    cards:     { safe: safeCard, main: null, surprise: surpriseCard },
+    completed: { safe: false,    main: false, surprise: false },
+    mainAttr:  null,   // set when player picks an attribute
     swapsUsed: 0,
   };
+}
+
+/**
+ * Player picks an attribute → draw main card from that attr's pool.
+ * Stable seed (date + ':main:' + attr) means the same choice always gives
+ * the same card; changing attr gives a deterministically different card.
+ * Returns updated daily or null if main card is already completed.
+ */
+export async function selectMainAttr(daily, attr) {
+  if (daily.completed.main) return null;
+  const pools = await loadPools();
+  const rng = seededRNG(hash32(daily.date + ':main:' + attr));
+  const attrPool = pools.main.filter(c => c.attribute === attr);
+  daily.cards.main = pickRandom(attrPool.length > 0 ? attrPool : pools.main, rng);
+  daily.mainAttr = attr;
+  await idb.put('daily', daily);
+  return daily;
 }
 
 export async function getTodayDaily() {
