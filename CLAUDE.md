@@ -78,9 +78,16 @@ One-screen layout (`100dvh`, no scroll) on `#view-home`:
 
 ### Daily card system
 
-Cards are drawn deterministically: `seededRNG(hash32(date))` guarantees the same 3 cards all day. The drawn result is cached in IDB on first access. Swap uses seed `date + ':swap:' + swapsUsed` for stable replay.
+Three cards per day: **安全（safe）** + **成長（main）** + **奇遇（surprise）**.
 
-Direction is stored in `state.direction` (set during onboarding); `cards.js` reads it at draw time.
+- **安全卡 / 奇遇卡**: drawn deterministically at `getTodayDaily()` via `seededRNG(hash32(date))` — same cards all day regardless of player action.
+- **成長卡**: `cards.main = null` until player picks an attribute. `selectMainAttr(daily, attr)` draws from that attr's pool via seed `hash32(date + ':main:' + attr)` — same choice always gives same card; changing attr gives a different (but still stable) card. Cached in `daily.mainAttr`.
+  - Before completion: player can re-open picker ("換屬性") to change attribute → new card drawn.
+  - After completion: locked (no picker, no change button).
+  - Old daily records without `mainAttr`: `cards.main` shown as-is, "換屬性" available.
+- Swap (奇遇): seed `date + ':swap:' + swapsUsed`, once per day.
+
+`state.direction` field preserved for backward compat but **no longer drives card selection** (v0.4-2).
 
 `todayString()` uses local calendar date (not UTC) so midnight rolls over at the player's device time.
 
@@ -166,7 +173,11 @@ saves (user_id uuid PK, state jsonb, version bigint, updated_at timestamptz)
 ```
 **無 `story` 欄** — 卡片不帶敘事。
 
-Three pools: `safe.json` (5 cards, one per attribute), `main.json` (9 cards, direction-weighted), `surprise.json` (5 absurd cards, swappable once/day).
+Three pools: `safe.json` (5 cards, one per attribute), `main.json` (9 cards, all five attributes covered), `surprise.json` (5 absurd cards, swappable once/day).
+
+### Onboarding（v0.4-2 簡化）
+
+Single-step: welcome message → "開始 →" → `startKingdom()` → home. No lifetime direction choice. `state.direction` stays null for new users.
 
 ## Upcoming milestones
 
