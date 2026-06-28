@@ -81,13 +81,18 @@ One-screen layout (`100dvh`, no scroll) on `#view-home`:
 Three cards per day: **安全（safe）** + **成長（main）** + **奇遇（surprise）**.
 
 - **安全卡 / 奇遇卡**: drawn deterministically at `getTodayDaily()` via `seededRNG(hash32(date))` — same cards all day regardless of player action.
-- **成長卡**: `cards.main = null` until player picks an attribute. `selectMainAttr(daily, attr)` draws from that attr's pool via seed `hash32(date + ':main:' + attr)` — same choice always gives same card; changing attr gives a different (but still stable) card. Cached in `daily.mainAttr`.
-  - Before completion: player can re-open picker ("換屬性") to change attribute → new card drawn.
-  - After completion: locked (no picker, no change button).
-  - Old daily records without `mainAttr`: `cards.main` shown as-is, "換屬性" available.
+- **成長卡（v0.4-3）**: auto-drawn on boot from the day's **rotation attribute** — `cards.main` is never null when the player sees the home screen. `daily.mainAttr` defaults to the rotation attr.
+  - Rotation: `ATTR_ROTATION = ['courage','vitality','focus','warmth','curiosity']`; index = `Math.floor(epochMs/86400000) % 5`. A non-choosing player sees all five element types over any 5-day window.
+  - Seed: `hash32(date + ':main:' + attr)` — same date+attr always gives same card.
+  - "換個方向" (`btn-attr-change`): small, unobtrusive button. Click → inline 5-attr picker replaces card actions. Choosing an attr calls `selectMainAttr(daily, attr)` → re-draws from that attr's pool with the same stable seed.
+  - Before completion: player can change attr freely; card updates immediately.
+  - After completion: locked; "換個方向" hidden.
+  - On reload: same card shown (cached in `daily` IDB store).
+  - Backward compat (`getTodayDaily`): if a saved daily has `cards.main = null` (v0.4-2 style), auto-draws from `mainAttr ?? defaultAttrForDate(date)` and persists.
+- Completion toast: when main card grows successfully, shows `ATTR_COMPLETE_MSG[attr]` (e.g., 勇氣→「你的勇氣，讓國度向未知伸展了一格。」).
 - Swap (奇遇): seed `date + ':swap:' + swapsUsed`, once per day.
 
-`state.direction` field preserved for backward compat but **no longer drives card selection** (v0.4-2).
+`state.direction` field preserved for backward compat but **not used in card selection**.
 
 `todayString()` uses local calendar date (not UTC) so midnight rolls over at the player's device time.
 

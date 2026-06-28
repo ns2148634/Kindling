@@ -1,7 +1,15 @@
 import { idb } from './idb.js';
-import { state } from './state.js';
 
 const SWAPS_PER_DAY = 1;
+
+// Five attributes rotate by calendar day so a non-choosing player
+// gets all five element types over any 5-day window.
+const ATTR_ROTATION = ['courage', 'vitality', 'focus', 'warmth', 'curiosity'];
+
+export function defaultAttrForDate(date) {
+  const dayIndex = Math.floor(new Date(date + 'T00:00:00').getTime() / 86400000);
+  return ATTR_ROTATION[((dayIndex % 5) + 5) % 5];
+}
 
 export function todayString() {
   const d = new Date();
@@ -51,15 +59,23 @@ export async function loadPools() {
   return _pools;
 }
 
+function drawMainCard(date, attr, pools) {
+  const rng  = seededRNG(hash32(date + ':main:' + attr));
+  const pool = pools.main.filter(c => c.attribute === attr);
+  return pickRandom(pool.length > 0 ? pool : pools.main, rng);
+}
+
 function drawDailyCards(date, pools) {
-  const rng = seededRNG(hash32(date));
+  const rng          = seededRNG(hash32(date));
   const safeCard     = pickRandom(pools.safe, rng);
   const surpriseCard = pickRandom(pools.surprise, rng);
+  const defaultAttr  = defaultAttrForDate(date);
+  const mainCard     = drawMainCard(date, defaultAttr, pools);
   return {
     date,
-    cards:     { safe: safeCard, main: null, surprise: surpriseCard },
-    completed: { safe: false,    main: false, surprise: false },
-    mainAttr:  null,   // set when player picks an attribute
+    cards:     { safe: safeCard, main: mainCard, surprise: surpriseCard },
+    completed: { safe: false,    main: false,    surprise: false },
+    mainAttr:  defaultAttr,
     swapsUsed: 0,
   };
 }
@@ -73,10 +89,8 @@ function drawDailyCards(date, pools) {
 export async function selectMainAttr(daily, attr) {
   if (daily.completed.main) return null;
   const pools = await loadPools();
-  const rng = seededRNG(hash32(daily.date + ':main:' + attr));
-  const attrPool = pools.main.filter(c => c.attribute === attr);
-  daily.cards.main = pickRandom(attrPool.length > 0 ? attrPool : pools.main, rng);
-  daily.mainAttr = attr;
+  daily.cards.main = drawMainCard(daily.date, attr, pools);
+  daily.mainAttr   = attr;
   await idb.put('daily', daily);
   return daily;
 }
@@ -84,8 +98,17 @@ export async function selectMainAttr(daily, attr) {
 export async function getTodayDaily() {
   const date = todayString();
   const saved = await idb.get('daily', date);
-  if (saved) return saved;
-
+  if (saved) {
+    // Migrate v0.4-2 dailies where cards.main was null (player never picked)
+    if (!saved.cards.main) {
+      const pools = await loadPools();
+      const attr = saved.mainAttr ?? defaultAttrForDate(date);
+      saved.cards.main = drawMainCard(date, attr, pools);
+      saved.mainAttr   = attr;
+      await idb.put('daily', saved);
+    }
+    return saved;
+  }
   const pools = await loadPools();
   const daily = drawDailyCards(date, pools);
   await idb.put('daily', daily);

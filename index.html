@@ -445,6 +445,18 @@
       background: var(--attr-color, var(--border));
       color: #070a14;
     }
+    /* Small unobtrusive attr-change link for main card */
+    .btn-attr-change {
+      padding: 4px 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      opacity: 0.65;
+      transition: opacity 0.15s, color 0.15s;
+    }
+    .btn-attr-change:hover { opacity: 1; color: var(--text); }
 
     /* ── SW update banner (persistent, user-triggered reload) ── */
     #update-banner {

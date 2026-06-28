@@ -3,7 +3,7 @@ import { growElement } from './state.js';
 import { draw, updateCitizens } from './renderer.js';
 import { COL, cx, cy } from './constants.js';
 import { idb } from './idb.js';
-import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString, selectMainAttr } from './cards.js';
+import { getTodayDaily, swapSurprise as doSwap, loadPools, todayString, selectMainAttr, defaultAttrForDate } from './cards.js';
 import { registerSW } from 'virtual:pwa-register';
 import { syncOnBoot, schedulePush } from './sync.js';
 
@@ -61,6 +61,13 @@ const BLOCKED_MSG = {
   'need-land':    '沒有空格——先用勇氣卡加土地',
   'citizens-full':'居民已滿——先擴張土地',
   'no-land':      '王國還沒有土地',
+};
+const ATTR_COMPLETE_MSG = {
+  courage:   '你的勇氣，讓國度向未知伸展了一格。',
+  vitality:  '你的活力，在島上留下了生命的痕跡。',
+  warmth:    '有人因為你的溫暖，住進了這片土地。',
+  curiosity: '你的好奇心，讓王國長出了一棵新樹。',
+  focus:     '你的專注，在王國留下了一座新塔。',
 };
 
 let daily              = null;
@@ -156,11 +163,6 @@ function renderCards() {
 }
 
 function buildCard(slot) {
-  // Main card: show attr picker if no card yet or picker explicitly re-opened
-  if (slot === 'main' && (!daily.cards.main || _mainPickerOpen)) {
-    return buildMainPicker();
-  }
-
   const card = daily.cards[slot];
   const done = daily.completed[slot];
   const color = COL[card.attribute];
@@ -184,60 +186,44 @@ function buildCard(slot) {
   const actions = document.createElement('div');
   actions.className = 'card-actions';
 
-  const completeBtn = document.createElement('button');
-  completeBtn.className = 'btn-complete';
-  completeBtn.textContent = done ? '已完成 ✓' : '完成';
-  completeBtn.disabled = done;
-  completeBtn.onclick = () => completeCard(slot);
-  actions.appendChild(completeBtn);
+  if (slot === 'main' && !done && _mainPickerOpen) {
+    // Inline attr picker (replaces actions while open)
+    for (const attr of ['courage', 'vitality', 'focus', 'warmth', 'curiosity']) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-attr';
+      btn.style.setProperty('--attr-color', COL[attr]);
+      btn.textContent = ATTR_NAMES[attr];
+      btn.onclick = () => handleSelectMainAttr(attr);
+      actions.appendChild(btn);
+    }
+  } else {
+    const completeBtn = document.createElement('button');
+    completeBtn.className = 'btn-complete';
+    completeBtn.textContent = done ? '已完成 ✓' : '完成';
+    completeBtn.disabled = done;
+    completeBtn.onclick = () => completeCard(slot);
+    actions.appendChild(completeBtn);
 
-  if (slot === 'surprise') {
-    const swapBtn = document.createElement('button');
-    swapBtn.className = 'btn-swap';
-    const canSwap = !done && daily.swapsUsed < 1;
-    swapBtn.textContent = `換一張${daily.swapsUsed > 0 ? ' (已換)' : ''}`;
-    swapBtn.disabled = !canSwap;
-    swapBtn.onclick = handleSwap;
-    actions.appendChild(swapBtn);
-  }
+    if (slot === 'surprise') {
+      const swapBtn = document.createElement('button');
+      swapBtn.className = 'btn-swap';
+      const canSwap = !done && daily.swapsUsed < 1;
+      swapBtn.textContent = `換一張${daily.swapsUsed > 0 ? ' (已換)' : ''}`;
+      swapBtn.disabled = !canSwap;
+      swapBtn.onclick = handleSwap;
+      actions.appendChild(swapBtn);
+    }
 
-  if (slot === 'main' && !done) {
-    const changeBtn = document.createElement('button');
-    changeBtn.className = 'btn-swap';
-    changeBtn.textContent = '換屬性';
-    changeBtn.onclick = () => { _mainPickerOpen = true; renderCards(); };
-    actions.appendChild(changeBtn);
+    if (slot === 'main' && !done) {
+      const changeBtn = document.createElement('button');
+      changeBtn.className = 'btn-attr-change';
+      changeBtn.textContent = '換個方向';
+      changeBtn.onclick = () => { _mainPickerOpen = true; renderCards(); };
+      actions.appendChild(changeBtn);
+    }
   }
 
   div.append(meta, textEl, actions);
-  return div;
-}
-
-function buildMainPicker() {
-  const div = document.createElement('div');
-  div.className = 'card';
-
-  const meta = document.createElement('div');
-  meta.className = 'card-meta';
-  meta.innerHTML = '<span class="card-role">成長</span>';
-
-  const prompt = document.createElement('div');
-  prompt.className = 'card-text';
-  prompt.textContent = '選今天想練的方向';
-
-  const picker = document.createElement('div');
-  picker.className = 'main-attr-picker';
-
-  for (const attr of ['courage', 'vitality', 'focus', 'warmth', 'curiosity']) {
-    const btn = document.createElement('button');
-    btn.className = 'btn-attr';
-    btn.style.setProperty('--attr-color', COL[attr]);
-    btn.textContent = ATTR_NAMES[attr];
-    btn.onclick = () => handleSelectMainAttr(attr);
-    picker.appendChild(btn);
-  }
-
-  div.append(meta, prompt, picker);
   return div;
 }
 
@@ -399,6 +385,7 @@ async function completeCard(slot) {
   const result = growElement(card.attribute);
   if (!result.blocked) {
     state.pulses.push({ x: result.x, y: result.y, t: performance.now(), color: COL[card.attribute] });
+    if (slot === 'main') showToast(ATTR_COMPLETE_MSG[card.attribute] ?? '');
   } else {
     state.counts[card.attribute]++;
     showToast(BLOCKED_MSG[result.blocked] ?? '元素已加入卡冊');
